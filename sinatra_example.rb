@@ -11,8 +11,7 @@ require 'rack/openid'
 ##
 require 'openid/store/memcache'
 require 'dalli'
-use Rack::OpenID,
-  OpenID::Store::Memcache.new(Dalli::Client.new)
+use Rack::OpenID, OpenID::Store::Memcache.new(Dalli::Client.new)
 
 OpenID.fetcher.ca_file = "curl-ca-bundle.crt"
 
@@ -25,17 +24,17 @@ module OpenID
         ts = timestamp.to_s # base 10 seconds since epoch
         nonce_key = key_prefix + 'N' + server_url + '|' + ts + '|' + salt
         result = @cache_client.add(nonce_key, '', expiry(Nonce.skew + 5))
-        
+
         if result.is_a? String
           return !!(result =~ /^STORED/)
         else
           return result == true
         end
       end
-      
+
       def delete(key)
         result = @cache_client.delete(key)
-        
+
         if result.is_a? String
           return !!(result =~ /^DELETED/)
         else
@@ -49,6 +48,31 @@ end
 get '/' do
   redirect '/login'
 end
+
+# TODO!
+class Rack::OpenID
+  def call(env)
+    req = Rack::Request.new(env)
+    if req.params["openid.mode"]
+      complete_authentication(env)
+    end
+
+    status, headers, body = @app.call(env)
+
+    qs = headers[AUTHENTICATE_HEADER]
+
+
+    @log ||= Logger.new(STDERR)
+    @log.warn qs
+
+
+    if status.to_i == 401 && qs && qs.match(AUTHENTICATE_REGEXP)
+      begin_authentication(env, qs)
+    else
+      [status, headers, body]
+    end
+  end
+end
 ##
 
 get '/login' do
@@ -56,7 +80,7 @@ get '/login' do
 end
 
 post '/login' do
-  if resp = request.env["rack.openid.response"]
+  if resp = request.env[Rack::OpenID::RESPONSE]  ##
     if resp.status == :success
       @message = "Welcome: #{resp.display_identifier}"  ##
     else
@@ -64,7 +88,7 @@ post '/login' do
     end
     erb :login
   else
-    headers 'WWW-Authenticate' =>
+    headers Rack::OpenID::AUTHENTICATE_HEADER =>  ##
       Rack::OpenID.build_header(:identifier => params["openid_identifier"])
     throw :halt, [401, 'got openid?']
   end
@@ -91,8 +115,8 @@ __END__
 @@##
 
 @@ layout
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">	
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <title>rack-openid test</title></head>
