@@ -48,31 +48,6 @@ end
 get '/' do
   redirect '/login'
 end
-
-# TODO!
-class Rack::OpenID
-  def call(env)
-    req = Rack::Request.new(env)
-    if req.params["openid.mode"]
-      complete_authentication(env)
-    end
-
-    status, headers, body = @app.call(env)
-
-    qs = headers[AUTHENTICATE_HEADER]
-
-
-    @log ||= Logger.new(STDERR)
-    @log.warn qs
-
-
-    if status.to_i == 401 && qs && qs.match(AUTHENTICATE_REGEXP)
-      begin_authentication(env, qs)
-    else
-      [status, headers, body]
-    end
-  end
-end
 ##
 
 get '/login' do
@@ -123,8 +98,8 @@ __END__
 <body>
     <h1><a href="https://github.com/josh/rack-openid"
           title="the source">rack-openid</a> test
-      (<a href="https://github.com/josh/rack-openid"
-         title="the source">sinatra example</a> based)</h1>
+      (<a href="https://github.com/costa/rack-openid-test"
+         title="source">based on the sinatra example</a>)</h1>
     <div id="content">
         <div id="message">
           <strong><%= h(@message ||'Please enter your URL below') %></strong>
