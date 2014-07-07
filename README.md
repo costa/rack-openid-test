@@ -1,3 +1,4 @@
+## OBSOLETE
 
 This is a working test of [rack-openid](https://github.com/josh/rack-openid)
 based on the sinatra example provided there.
